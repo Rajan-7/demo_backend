@@ -79,11 +79,14 @@
         const answer = document.getElementById("answer").value.trim();
 
         try {
-          const res = await fetch("http://localhost:3000/check-answer", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ answer }),
-          });
+          const res = await fetch(
+            "https://demo-backend-rhxb.onrender.com/check-answer",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ answer }),
+            }
+          );
           const data = await res.json();
           if (data.success) {
             window.location.href = "mails.html";
