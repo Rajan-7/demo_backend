@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Access Check</title>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: #f3f4f6;
+        margin: 0;
+      }
+
+      .container {
+        background: white;
+        padding: 2rem 3rem;
+        border-radius: 10px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+
+      h1 {
+        color: #004e92;
+        margin-bottom: 1rem;
+      }
+
+      input {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        margin-right: 10px;
+        width: 80px;
+        text-align: center;
+        font-weight: 600;
+      }
+
+      button {
+        background: #004e92;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+
+      button:hover {
+        background: #2563eb;
+      }
+
+      .error {
+        color: red;
+        margin-top: 1rem;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Solve to Access Emails</h1>
+      <form id="authForm">
+        <label>1 + 1 = ? (Binary)</label><br /><br />
+        <input type="text" id="answer" required placeholder="Your Answer" />
+        <button type="submit">Submit</button>
+      </form>
+      <div class="error" id="error"></div>
+    </div>
+
+    <script>
+      const form = document.getElementById("authForm");
+      const errorDiv = document.getElementById("error");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const answer = document.getElementById("answer").value.trim();
+
+        try {
+          const res = await fetch("http://localhost:3000/check-answer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ answer }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            window.location.href = "mails.html";
+          } else {
+            errorDiv.textContent = data.message || "Wrong answer!";
+          }
+        } catch (err) {
+          console.error(err);
+          errorDiv.textContent = "Server error, try again!";
+        }
+      });
+    </script>
+  </body>
+</html>

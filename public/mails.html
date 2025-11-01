@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Subscriptions</title>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background: #f3f4f6;
+        margin: 0;
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      h1 {
+        color: #004e92;
+        margin-bottom: 1rem;
+      }
+
+      table {
+        width: 95%;
+        max-width: 900px;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      th,
+      td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #e5e7eb;
+        text-align: left;
+      }
+
+      th {
+        background: #004e92;
+        color: white;
+        font-weight: 600;
+      }
+
+      tr:hover {
+        background: #f1f5f9;
+      }
+
+      #refresh {
+        background: #004e92;
+        color: white;
+        border: none;
+        padding: 10px 18px;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+
+      #refresh:hover {
+        background: #2563eb;
+      }
+
+      .empty {
+        text-align: center;
+        padding: 1rem;
+        color: #6b7280;
+      }
+
+      .pagination {
+        margin-top: 1rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .pagination button {
+        border: none;
+        background: #e5e7eb;
+        color: #111827;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+
+      .pagination button:hover {
+        background: #004e92;
+        color: white;
+      }
+
+      .pagination button.active {
+        background: #004e92;
+        color: white;
+        cursor: default;
+      }
+
+      .pagination button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      select {
+        font-weight: 600;
+        padding: 4px 6px;
+        border-radius: 4px;
+      }
+
+      .delete-btn {
+        background: red;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+
+      .delete-btn:hover {
+        background: darkred;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>📧 Subscribed Emails</h1>
+    <button id="refresh">Refresh Now</button>
+
+    <table id="emailTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Email</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="emailBody">
+        <tr>
+          <td colspan="5" class="empty">Loading...</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="pagination" id="pagination"></div>
+
+    <script>
+      const API_URL = "http://localhost:3000/emails"; // change if hosted elsewhere
+      const emailBody = document.getElementById("emailBody");
+      const pagination = document.getElementById("pagination");
+      const refreshBtn = document.getElementById("refresh");
+
+      const ITEMS_PER_PAGE = 10;
+      let currentPage = 1;
+      let allEmails = [];
+
+      async function fetchEmails() {
+        try {
+          const res = await fetch(API_URL);
+          const data = await res.json();
+          allEmails = data;
+          renderPage(currentPage);
+        } catch (err) {
+          console.error(err);
+          emailBody.innerHTML = `<tr><td colspan="5" class="empty">Error loading data</td></tr>`;
+        }
+      }
+
+      function getStatusColor(status) {
+        if (status === "sent") return "green";
+        if (status === "failed") return "red";
+        return "#6b7280"; // gray for pending
+      }
+
+      function renderPage(page) {
+        if (!Array.isArray(allEmails) || allEmails.length === 0) {
+          emailBody.innerHTML = `<tr><td colspan="5" class="empty">No emails found</td></tr>`;
+          pagination.innerHTML = "";
+          return;
+        }
+
+        const start = (page - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        const emailsToShow = allEmails.slice(start, end);
+
+        emailBody.innerHTML = emailsToShow
+          .map((item, i) => {
+            return `
+            <tr>
+              <td>${start + i + 1}</td>
+              <td>${item.email}</td>
+              <td>${new Date(item.createdAt).toLocaleString()}</td>
+              <td>
+                <select onchange="updateStatus('${item._id}', this.value)" 
+                        style="color:${getStatusColor(item.status)};">
+                  <option value="pending" ${
+                    item.status === "pending" ? "selected" : ""
+                  }>pending</option>
+                  <option value="sent" ${
+                    item.status === "sent" ? "selected" : ""
+                  }>sent</option>
+                  <option value="failed" ${
+                    item.status === "failed" ? "selected" : ""
+                  }>failed</option>
+                </select>
+              </td>
+              <td>
+                <button class="delete-btn" onclick="deleteEmail('${
+                  item._id
+                }')">Delete</button>
+              </td>
+            </tr>
+          `;
+          })
+          .join("");
+
+        renderPagination();
+      }
+
+      function renderPagination() {
+        const totalPages = Math.ceil(allEmails.length / ITEMS_PER_PAGE);
+        if (totalPages <= 1) {
+          pagination.innerHTML = "";
+          return;
+        }
+
+        let buttons = `<button ${
+          currentPage === 1 ? "disabled" : ""
+        } onclick="changePage(${currentPage - 1})">Prev</button>`;
+
+        for (let i = 1; i <= totalPages; i++) {
+          buttons += `<button class="${
+            currentPage === i ? "active" : ""
+          }" onclick="changePage(${i})">${i}</button>`;
+        }
+
+        buttons += `<button ${
+          currentPage === totalPages ? "disabled" : ""
+        } onclick="changePage(${currentPage + 1})">Next</button>`;
+
+        pagination.innerHTML = buttons;
+      }
+
+      function changePage(page) {
+        const totalPages = Math.ceil(allEmails.length / ITEMS_PER_PAGE);
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        renderPage(currentPage);
+      }
+
+      async function updateStatus(id, status) {
+        try {
+          const res = await fetch(`${API_URL}/${id}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status }),
+          });
+          if (!res.ok) throw new Error("Failed to update status");
+          fetchEmails();
+        } catch (err) {
+          console.error(err);
+          alert("Error updating status");
+        }
+      }
+
+      async function deleteEmail(id) {
+        if (!confirm("Are you sure you want to delete this email?")) return;
+        try {
+          const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+          if (!res.ok) throw new Error("Failed to delete email");
+          fetchEmails();
+        } catch (err) {
+          console.error(err);
+          alert("Error deleting email");
+        }
+      }
+
+      refreshBtn.addEventListener("click", fetchEmails);
+
+      // Initial fetch and auto-refresh
+      fetchEmails();
+      setInterval(fetchEmails, 5000);
+
+      window.changePage = changePage; // for inline onclick
+    </script>
+  </body>
+</html>
