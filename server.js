@@ -20,6 +20,10 @@ mongoose.connect(process.env.MONGO_URI, {
 app.use(express.static(path.join(__dirname, "public")));
 
 // Route for auth page
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "auth.html"));
+});
+
 app.get("/auth.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "auth.html"));
 });
